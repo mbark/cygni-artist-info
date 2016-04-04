@@ -148,7 +148,7 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <manifestEntries>
                                         <Main-Class>io.vertx.core.Launcher</Main-Class>
-                                        <Main-Verticle>se.mbark.kry.Server</Main-Verticle>
+                                        <Main-Verticle>se.mbark.cygni.Server</Main-Verticle>
                                     </manifestEntries>
                                 </transformer>
                             </transformers>
