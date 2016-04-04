@@ -8,13 +8,14 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
+
+import java.util.ArrayList;
 
 public class Server extends AbstractVerticle {
     final private Vertx vertx = Vertx.vertx();
-    final private WikipediaApi wikipedia = new WikipediaApi();
-    final private MusicBrainzApi musicBrainz = new MusicBrainzApi();
-    final private CovertArtArchiveApi covertArtArchive = new CovertArtArchiveApi();
+    final private WikipediaApi wikipedia = new WikipediaApi(vertx);
+    final private MusicBrainzApi musicBrainz = new MusicBrainzApi(vertx);
+    final private CovertArtArchiveApi coverArtArchive = new CovertArtArchiveApi(vertx);
 
     @Override
     public void start(Future<Void> fut) {
@@ -36,27 +37,39 @@ public class Server extends AbstractVerticle {
     }
 
     public void getAlbumInfo(RoutingContext context) {
-        try {
-            Handler<AsyncResult<JsonObject>> callback = result -> {
-                System.out.println("got callback with result" + result.result());
-            };
-
-            String mbid = context.request().getParam("mbid");
-            if (mbid == null) {
-                context.response().setStatusCode(400).end();
-                return;
-            }
-
-            musicBrainz.getArtistInfo(mbid, callback);
-            wikipedia.getArtistDescription(mbid, callback);
-            covertArtArchive.getAlbumCover(mbid, callback);
-
-            context.response().setStatusCode(200).end();
-        } catch(Exception e) {
-            System.err.println("Got exception during request")
-            System.err.println(e);
+        String mbid = context.request().getParam("mbid");
+        if (mbid == null) {
             context.response().setStatusCode(400).end();
+            return;
         }
+
+        musicBrainz.getArtistInfo(mbid, musicBrainzRequest -> {
+            if(musicBrainzRequest.succeeded()) {
+                JsonObject musicBrainzResponse = musicBrainzRequest.result();
+                ArtistInfo artist = parseMusicBrainzResponse(mbid, musicBrainzResponse);
+
+                wikipedia.getArtistDescription(artist.getName(), wikipediaRequest -> {
+                    System.out.println("Got response from wikipedia" + wikipediaRequest);
+                });
+
+                for(AlbumInfo album : artist.getAlbums()) {
+                    coverArtArchive.getAlbumCover(album.getId(), coverArtArchiveRequest -> {
+                        System.out.println("Got cover art for " + album.getId() + " with response " + coverArtArchiveRequest);
+                    });
+                }
+            }
+        });
+
+        context.response().setStatusCode(200).end();
+    }
+
+    private ArtistInfo parseMusicBrainzResponse(String mbid, JsonObject musicBrainzResponse) {
+        System.out.println(musicBrainzResponse);
+
+        ArtistInfo artist = new ArtistInfo(mbid);
+        artist.setName("");
+        artist.setAlbums(new ArrayList<>());
+        return artist;
     }
 
     private void completeStartup(AsyncResult<HttpServer> http, Future<Void> fut) {

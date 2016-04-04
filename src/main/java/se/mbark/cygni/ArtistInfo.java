@@ -7,18 +7,12 @@ import java.util.List;
  */
 public class ArtistInfo {
     final private String mbid;
+    private String name;
     private String description;
     private List<AlbumInfo> albums;
 
     public ArtistInfo(String mbid) {
         this.mbid = mbid;
-    }
-    public List<AlbumInfo> getAlbums() {
-        return albums;
-    }
-
-    public void setAlbums(List<AlbumInfo> albums) {
-        this.albums = albums;
     }
 
     public String getMbid() {
@@ -33,4 +27,19 @@ public class ArtistInfo {
         this.description = description;
     }
 
+    public List<AlbumInfo> getAlbums() {
+        return albums;
+    }
+
+    public void setAlbums(List<AlbumInfo> albums) {
+        this.albums = albums;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 }

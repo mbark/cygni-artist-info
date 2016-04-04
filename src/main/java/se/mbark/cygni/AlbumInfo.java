@@ -6,14 +6,12 @@ import java.net.URL;
  * Created by mbark on 04/04/16.
  */
 public class AlbumInfo {
+    private final String id;
     private String title;
-    private String id;
     private URL image;
 
-    public AlbumInfo(String title, String id, URL image) {
-        this.title = title;
+    public AlbumInfo(String id) {
         this.id = id;
-        this.image = image;
     }
 
     public String getTitle() {
@@ -26,10 +24,6 @@ public class AlbumInfo {
 
     public String getId() {
         return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     public URL getImage() {
