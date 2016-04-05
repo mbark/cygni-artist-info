@@ -39,7 +39,6 @@ public class MusicBrainzApi {
 
     private String buildUrl(String mbid) {
         String url = API_URL + mbid + "?" + "&fmt=" + FMT_PARAM + "&inc=" + INC_PARAM;
-        System.out.println(url);
         return url;
     }
 }

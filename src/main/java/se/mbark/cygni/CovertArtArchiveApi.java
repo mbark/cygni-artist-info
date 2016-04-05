@@ -38,7 +38,6 @@ public class CovertArtArchiveApi {
 
     private String buildUrl(String mbid) {
         String url = URL + RELEASE_GROUP + mbid + FRONT;
-        System.out.println(url);
         return url;
     }
 }

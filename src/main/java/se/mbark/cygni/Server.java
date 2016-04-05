@@ -56,8 +56,10 @@ public class Server extends AbstractVerticle {
                     context.response().setStatusCode(400).end();
                     return;
                 }
+                String wikipediaTitle = wikipediaArtistTitle(musicBrainzResponse);
+                System.out.println("Wikipedia title: " + wikipediaTitle);
 
-                wikipedia.getArtistDescription(artist.getName(), wikipediaRequest -> {
+                wikipedia.getArtistDescription(wikipediaTitle, wikipediaRequest -> {
 
                 });
 
@@ -70,7 +72,6 @@ public class Server extends AbstractVerticle {
                             } catch (MalformedURLException e) {
                                 e.printStackTrace();
                             }
-                            System.out.println("The image url:" + album.getImage());
                         }
                     });
                 }
@@ -78,6 +79,25 @@ public class Server extends AbstractVerticle {
         });
 
         context.response().setStatusCode(200).end();
+    }
+
+    private String wikipediaArtistTitle(JsonObject musicBrainzResponse) {
+        JsonArray relations = musicBrainzResponse.getJsonArray("relations");
+        String bandName = null;
+        for(int i = 0; i < relations.size(); i++) {
+            JsonObject relation = relations.getJsonObject(i);
+            if("wikipedia".equals(relation.getString("type"))) {
+                JsonObject url = relation.getJsonObject("url");
+                String wikipediaUrl = url.getString("resource");
+                bandName = getLastBitFromUrl(wikipediaUrl);
+            }
+        }
+        return bandName;
+    }
+
+    private static String getLastBitFromUrl(final String url){
+        // thank you stack overflow
+        return url.replaceFirst(".*/([^/?]+).*", "$1");
     }
 
     private ArtistInfo parseMusicBrainzResponse(String mbid, JsonObject musicBrainzResponse) {
