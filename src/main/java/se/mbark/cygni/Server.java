@@ -9,13 +9,14 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import se.mbark.cygni.parsers.CoverArtArchiveResponseParser;
+import se.mbark.cygni.parsers.MusicBrainzResponseParser;
+import se.mbark.cygni.parsers.WikipediaResponeParser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class Server extends AbstractVerticle {
     final private Vertx vertx = Vertx.vertx();
@@ -52,41 +53,23 @@ public class Server extends AbstractVerticle {
         musicBrainz.getArtistInfo(mbid, musicBrainzRequest -> {
             if(musicBrainzRequest.succeeded()) {
                 JsonObject musicBrainzResponse = musicBrainzRequest.result();
-                ArtistInfo artist = parseMusicBrainzResponse(mbid, musicBrainzResponse);
+                ArtistInfo artist = MusicBrainzResponseParser.parseMusicBrainzResponse(mbid, musicBrainzResponse);
 
                 if(artist == null) {
                     context.response().setStatusCode(400).end();
                     return;
                 }
-                String wikipediaTitle = wikipediaArtistTitle(musicBrainzResponse);
+                String wikipediaTitle = MusicBrainzResponseParser.parseWikipediaArtistTitle(musicBrainzResponse);
 
                 wikipedia.getArtistDescription(wikipediaTitle, wikipediaRequest -> {
-                    if(wikipediaRequest.succeeded()) {
-                        JsonObject wikipediaResponse = wikipediaRequest.result();
-                        JsonObject pagesJson = wikipediaResponse.getJsonObject("query").getJsonObject("pages");
-
-                        Map<String, Object> pages = pagesJson.getMap();
-                        String artistExtract = null;
-
-                        for(Map.Entry<String, Object> entry : pages.entrySet()) {
-                            JsonObject page = pagesJson.getJsonObject(entry.getKey());
-                            // we only request one page
-                            artistExtract = page.getString("extract");
-                        }
-
-                        System.out.println("Wikipedia extract:" + artistExtract);
-                    }
+                    String extract = WikipediaResponeParser.parseExtract(wikipediaRequest.result());
                 });
 
                 for(AlbumInfo album : artist.getAlbums()) {
                     coverArtArchive.getAlbumCover(album.getId(), coverArtArchiveRequest -> {
                         if(coverArtArchiveRequest.succeeded()) {
-                            JsonObject coverArtResponse = coverArtArchiveRequest.result();
-                            try {
-                                album.setImage(new URL(coverArtResponse.getString("image")));
-                            } catch (MalformedURLException e) {
-                                e.printStackTrace();
-                            }
+                            URL imageUrl = CoverArtArchiveResponseParser.parseImageUrl(coverArtArchiveRequest.result());
+                            album.setImage(imageUrl);
                         }
                     });
                 }
@@ -94,53 +77,6 @@ public class Server extends AbstractVerticle {
         });
 
         context.response().setStatusCode(200).end();
-    }
-
-    private String wikipediaArtistTitle(JsonObject musicBrainzResponse) {
-        JsonArray relations = musicBrainzResponse.getJsonArray("relations");
-        String bandName = null;
-        for(int i = 0; i < relations.size(); i++) {
-            JsonObject relation = relations.getJsonObject(i);
-            if("wikipedia".equals(relation.getString("type"))) {
-                JsonObject url = relation.getJsonObject("url");
-                String wikipediaUrl = url.getString("resource");
-                bandName = getLastBitFromUrl(wikipediaUrl);
-            }
-        }
-        return bandName;
-    }
-
-    private static String getLastBitFromUrl(final String url){
-        // thank you stack overflow
-        return url.replaceFirst(".*/([^/?]+).*", "$1");
-    }
-
-    private ArtistInfo parseMusicBrainzResponse(String mbid, JsonObject musicBrainzResponse) {
-        String name = musicBrainzResponse.getString("name");
-        JsonArray jsonAlbums = musicBrainzResponse.getJsonArray("release-groups");
-
-        if(name == null || jsonAlbums == null) {
-            System.out.println("Unable to parse music brainz response");
-            System.out.println(musicBrainzResponse);
-            return null;
-        }
-
-        List<AlbumInfo> albums = new ArrayList<>();
-        for(int i = 0; i < jsonAlbums.size(); i++) {
-            JsonObject albumInfo = jsonAlbums.getJsonObject(i);
-            if("Album".equals(albumInfo.getString("primary-type"))) {
-                String id = albumInfo.getString("id");
-                String title = albumInfo.getString("title");
-                AlbumInfo album = new AlbumInfo(id);
-                album.setTitle(title);
-                albums.add(album);
-            }
-        }
-
-        ArtistInfo artist = new ArtistInfo(mbid);
-        artist.setName(name);
-        artist.setAlbums(albums);
-        return artist;
     }
 
     private void completeStartup(AsyncResult<HttpServer> http, Future<Void> fut) {
