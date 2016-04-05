@@ -27,13 +27,13 @@ public class MusicBrainzApi {
         client.getAbs(url, response -> {
             if(response.statusCode() != 200) {
                 callback.handle(InternalHelper.failure(new Exception()));
+            } else {
+                response.bodyHandler(body -> {
+                    String content = body.getString(0, body.length());
+                    JsonObject json = new JsonObject(content);
+                    callback.handle(InternalHelper.result(json));
+                });
             }
-
-            response.bodyHandler(body -> {
-                String content = body.getString(0, body.length());
-                JsonObject json = new JsonObject(content);
-                callback.handle(InternalHelper.result(json));
-            });
         }).putHeader("user-agent", USER_AGENT).end();
     }
 

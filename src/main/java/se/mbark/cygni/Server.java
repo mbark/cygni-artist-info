@@ -10,6 +10,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,12 +58,20 @@ public class Server extends AbstractVerticle {
                 }
 
                 wikipedia.getArtistDescription(artist.getName(), wikipediaRequest -> {
+
                 });
 
                 for(AlbumInfo album : artist.getAlbums()) {
                     coverArtArchive.getAlbumCover(album.getId(), coverArtArchiveRequest -> {
-                        JsonObject coverArtResponse = coverArtArchiveRequest.result();
-                        System.out.println("Album with " + album.getId() + " got response " + coverArtResponse);
+                        if(coverArtArchiveRequest.succeeded()) {
+                            JsonObject coverArtResponse = coverArtArchiveRequest.result();
+                            try {
+                                album.setImage(new URL(coverArtResponse.getString("image")));
+                            } catch (MalformedURLException e) {
+                                e.printStackTrace();
+                            }
+                            System.out.println("The image url:" + album.getImage());
+                        }
                     });
                 }
             }
