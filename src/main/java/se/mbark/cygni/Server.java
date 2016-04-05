@@ -5,11 +5,13 @@ package se.mbark.cygni;
 
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class Server extends AbstractVerticle {
     final private Vertx vertx = Vertx.vertx();
@@ -36,7 +38,7 @@ public class Server extends AbstractVerticle {
                 .listen(config().getInteger("http.port", 8081), next::handle);
     }
 
-    public void getAlbumInfo(RoutingContext context) {
+    private void getAlbumInfo(RoutingContext context) {
         String mbid = context.request().getParam("mbid");
         if (mbid == null) {
             context.response().setStatusCode(400).end();
@@ -48,13 +50,18 @@ public class Server extends AbstractVerticle {
                 JsonObject musicBrainzResponse = musicBrainzRequest.result();
                 ArtistInfo artist = parseMusicBrainzResponse(mbid, musicBrainzResponse);
 
+                if(artist == null) {
+                    context.response().setStatusCode(400).end();
+                    return;
+                }
+
                 wikipedia.getArtistDescription(artist.getName(), wikipediaRequest -> {
-                    System.out.println("Got response from wikipedia" + wikipediaRequest);
                 });
 
                 for(AlbumInfo album : artist.getAlbums()) {
                     coverArtArchive.getAlbumCover(album.getId(), coverArtArchiveRequest -> {
-                        System.out.println("Got cover art for " + album.getId() + " with response " + coverArtArchiveRequest);
+                        JsonObject coverArtResponse = coverArtArchiveRequest.result();
+                        System.out.println("Album with " + album.getId() + " got response " + coverArtResponse);
                     });
                 }
             }
@@ -64,11 +71,30 @@ public class Server extends AbstractVerticle {
     }
 
     private ArtistInfo parseMusicBrainzResponse(String mbid, JsonObject musicBrainzResponse) {
-        System.out.println(musicBrainzResponse);
+        String name = musicBrainzResponse.getString("name");
+        JsonArray jsonAlbums = musicBrainzResponse.getJsonArray("release-groups");
+
+        if(name == null || jsonAlbums == null) {
+            System.out.println("Unable to parse music brainz response");
+            System.out.println(musicBrainzResponse);
+            return null;
+        }
+
+        List<AlbumInfo> albums = new ArrayList<>();
+        for(int i = 0; i < jsonAlbums.size(); i++) {
+            JsonObject albumInfo = jsonAlbums.getJsonObject(i);
+            if("Album".equals(albumInfo.getString("primary-type"))) {
+                String id = albumInfo.getString("id");
+                String title = albumInfo.getString("title");
+                AlbumInfo album = new AlbumInfo(id);
+                album.setTitle(title);
+                albums.add(album);
+            }
+        }
 
         ArtistInfo artist = new ArtistInfo(mbid);
-        artist.setName("");
-        artist.setAlbums(new ArrayList<>());
+        artist.setName(name);
+        artist.setAlbums(albums);
         return artist;
     }
 

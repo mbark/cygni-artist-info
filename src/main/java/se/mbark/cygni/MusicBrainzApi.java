@@ -14,6 +14,8 @@ public class MusicBrainzApi {
     private static final String API_URL = "http://musicbrainz.org/ws/2/artist/";
     private static final String INC_PARAM = "url-rels+release-groups";
     private static final String FMT_PARAM = "json";
+    private static final String USER_AGENT = "CygniProgrammingTest/0.0.1 ( barksten@kth.se )";
+
     private final HttpClient client;
 
     public MusicBrainzApi(Vertx vertx) {
@@ -23,16 +25,21 @@ public class MusicBrainzApi {
     public void getArtistInfo(String mbid, Handler<AsyncResult<JsonObject>> callback) {
         String url = buildUrl(mbid);
         client.getAbs(url, response -> {
+            if(response.statusCode() != 200) {
+                callback.handle(InternalHelper.failure(new Exception()));
+            }
+
             response.bodyHandler(body -> {
                 String content = body.getString(0, body.length());
                 JsonObject json = new JsonObject(content);
                 callback.handle(InternalHelper.result(json));
             });
-        }).putHeader("user-agent", "CygniProgrammingTest/0.0.1 ( barksten@kth.se )").end();
+        }).putHeader("user-agent", USER_AGENT).end();
     }
 
     private String buildUrl(String mbid) {
         String url = API_URL + mbid + "?" + "&fmt=" + FMT_PARAM + "&inc=" + INC_PARAM;
+        System.out.println(url);
         return url;
     }
 }
