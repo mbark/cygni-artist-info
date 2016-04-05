@@ -13,7 +13,9 @@ import io.vertx.ext.web.RoutingContext;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Server extends AbstractVerticle {
     final private Vertx vertx = Vertx.vertx();
@@ -57,10 +59,23 @@ public class Server extends AbstractVerticle {
                     return;
                 }
                 String wikipediaTitle = wikipediaArtistTitle(musicBrainzResponse);
-                System.out.println("Wikipedia title: " + wikipediaTitle);
 
                 wikipedia.getArtistDescription(wikipediaTitle, wikipediaRequest -> {
+                    if(wikipediaRequest.succeeded()) {
+                        JsonObject wikipediaResponse = wikipediaRequest.result();
+                        JsonObject pagesJson = wikipediaResponse.getJsonObject("query").getJsonObject("pages");
 
+                        Map<String, Object> pages = pagesJson.getMap();
+                        String artistExtract = null;
+
+                        for(Map.Entry<String, Object> entry : pages.entrySet()) {
+                            JsonObject page = pagesJson.getJsonObject(entry.getKey());
+                            // we only request one page
+                            artistExtract = page.getString("extract");
+                        }
+
+                        System.out.println("Wikipedia extract:" + artistExtract);
+                    }
                 });
 
                 for(AlbumInfo album : artist.getAlbums()) {
