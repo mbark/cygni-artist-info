@@ -5,8 +5,11 @@ package se.mbark.cygni;
 
 import io.vertx.core.*;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import se.mbark.cygni.parsers.CoverArtArchiveResponseParser;
@@ -23,6 +26,7 @@ public class Server extends AbstractVerticle {
     final private WikipediaApi wikipedia = new WikipediaApi(vertx);
     final private MusicBrainzApi musicBrainz = new MusicBrainzApi(vertx);
     final private CovertArtArchiveApi coverArtArchive = new CovertArtArchiveApi(vertx);
+    final Logger logger = LoggerFactory.getLogger("se.mbark.cygni.Server");
 
     @Override
     public void start(Future<Void> fut) {
@@ -56,27 +60,43 @@ public class Server extends AbstractVerticle {
                 ArtistInfo artist = MusicBrainzResponseParser.parseMusicBrainzResponse(mbid, musicBrainzResponse);
 
                 if(artist == null) {
-                    context.response().setStatusCode(400).end();
+                    respondWithError(context, 400);
                     return;
                 }
+
+                ResponseHandler handler = new ResponseHandler(artist);
+
                 String wikipediaTitle = MusicBrainzResponseParser.parseWikipediaArtistTitle(musicBrainzResponse);
 
                 wikipedia.getArtistDescription(wikipediaTitle, wikipediaRequest -> {
-                    String extract = WikipediaResponeParser.parseExtract(wikipediaRequest.result());
+                    JsonObject response = wikipediaRequest.result();
+                    handler.handleWikipediaResponse(response);
+                    respondIfDone(context, handler);
                 });
 
                 for(AlbumInfo album : artist.getAlbums()) {
                     coverArtArchive.getAlbumCover(album.getId(), coverArtArchiveRequest -> {
-                        if(coverArtArchiveRequest.succeeded()) {
-                            URL imageUrl = CoverArtArchiveResponseParser.parseImageUrl(coverArtArchiveRequest.result());
-                            album.setImage(imageUrl);
-                        }
+                        JsonObject response = coverArtArchiveRequest.result();
+                        handler.handleCoverArtResponse(album, response);
+                        respondIfDone(context, handler);
                     });
                 }
             }
         });
+    }
 
-        context.response().setStatusCode(200).end();
+    private void respondWithError(RoutingContext context, int statusCode) {
+        context.response().setStatusCode(statusCode).end();
+    }
+
+    private void respondIfDone(RoutingContext context, ResponseHandler handler) {
+        if(handler.isDone()) {
+            context
+                    .response()
+                    .putHeader("content-type", "application/json; charset=utf-8")
+                    .setStatusCode(200)
+                    .end(Json.encodePrettily(handler.getArtistInfo()));
+        }
     }
 
     private void completeStartup(AsyncResult<HttpServer> http, Future<Void> fut) {

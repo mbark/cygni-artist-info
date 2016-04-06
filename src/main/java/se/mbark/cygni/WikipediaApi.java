@@ -52,7 +52,6 @@ public class WikipediaApi {
 
     private String buildUrl(String title) {
         String url = BASE_URL + TITLES + title + FORMAT + ACTION + PROP + REDIRECTS;
-        System.out.println(url);
         return url;
     }
 }

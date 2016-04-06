@@ -14,7 +14,7 @@ public class CoverArtArchiveResponseParser {
         try {
             url = new URL(coverArtResponse.getString("image"));
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
         }
         return url;
     }
