@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetClientOptions;
@@ -25,29 +26,13 @@ public class WikipediaApi {
 
 
     public WikipediaApi(Vertx vertx) {
-        HttpClientOptions options = new HttpClientOptions().
-                setSsl(true).
-                setTrustAll(true);
-        client = vertx.createHttpClient(options);
+        client = RestClientUtil.getSslClient(vertx);
     }
 
     public void getArtistDescription(String title, Handler<AsyncResult<JsonObject>> callback) {
         String url = buildUrl(title);
-
-        client.getAbs(url, response -> {
-            response.bodyHandler(body -> {
-                String content = body.getString(0, body.length());
-
-                if(response.statusCode() == 200) {
-                    JsonObject json = new JsonObject(content);
-                    callback.handle(InternalHelper.result(json));
-                } else {
-                    System.out.println("Not 200: " + response.statusCode() + ", response body: " + content);
-                    System.out.println(response.getHeader("Location"));
-                    callback.handle(InternalHelper.failure(new Exception()));
-                }
-            });
-        }).end();
+        HttpClientRequest request = RestClientUtil.getJsonRequest(client, url, callback);
+        request.end();
     }
 
     private String buildUrl(String title) {

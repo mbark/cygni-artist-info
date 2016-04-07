@@ -4,6 +4,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.lang.rxjava.InternalHelper;
 
@@ -24,17 +25,8 @@ public class MusicBrainzApi {
 
     public void getArtistInfo(String mbid, Handler<AsyncResult<JsonObject>> callback) {
         String url = buildUrl(mbid);
-        client.getAbs(url, response -> {
-            if(response.statusCode() != 200) {
-                callback.handle(InternalHelper.failure(new Exception()));
-            } else {
-                response.bodyHandler(body -> {
-                    String content = body.getString(0, body.length());
-                    JsonObject json = new JsonObject(content);
-                    callback.handle(InternalHelper.result(json));
-                });
-            }
-        }).putHeader("user-agent", USER_AGENT).end();
+        HttpClientRequest request = RestClientUtil.getJsonRequest(client, url, callback);
+        request.putHeader("user-agent", USER_AGENT).end();
     }
 
     private String buildUrl(String mbid) {

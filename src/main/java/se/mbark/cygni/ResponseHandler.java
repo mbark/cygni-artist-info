@@ -1,6 +1,9 @@
 package se.mbark.cygni;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import se.mbark.cygni.parsers.CoverArtArchiveResponseParser;
 import se.mbark.cygni.parsers.WikipediaResponeParser;
 
@@ -11,6 +14,7 @@ import java.util.List;
  * Created by mbark on 06/04/16.
  */
 public class ResponseHandler {
+    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.Server");
     final private ArtistInfo artistInfo;
 
     private boolean hasWikipediaInfo = false;
@@ -32,17 +36,30 @@ public class ResponseHandler {
         return hasWikipediaInfo && albumInfosNotSet <= 0;
     }
 
-    public void handleWikipediaResponse(JsonObject response) {
+    public void handleWikipediaResponse(AsyncResult<JsonObject> request) {
         hasWikipediaInfo = true;
+        LOGGER.debug("Wikipedia response received, {0} remaining responses from CoverArtArchive");
 
-        String extract = WikipediaResponeParser.parseExtract(response);
-        artistInfo.setDescription(extract);
+        if(request.succeeded()) {
+            JsonObject response = request.result();
+            String extract = WikipediaResponeParser.parseExtract(response);
+            artistInfo.setDescription(extract);
+        } else {
+            LOGGER.warn("Wikipedia request failed", request.cause());
+        }
     }
 
-    public void handleCoverArtResponse(AlbumInfo album, JsonObject response) {
+    public void handleCoverArtResponse(AlbumInfo album, AsyncResult<JsonObject> request) {
         albumInfosNotSet--;
+        LOGGER.debug("CoverArt response received, {0} remaining responses got Wikipedia response={1}", albumInfosNotSet, hasWikipediaInfo);
 
-        URL imageUrl = CoverArtArchiveResponseParser.parseImageUrl(response);
-        album.setImage(imageUrl);
+        if(request.succeeded()) {
+            JsonObject response = request.result();
+            URL imageUrl = CoverArtArchiveResponseParser.parseImageUrl(response);
+            album.setImage(imageUrl);
+        } else {
+            LOGGER.debug("No cover art found for album with id", album.getId());
+        }
+
     }
 }
