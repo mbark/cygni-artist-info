@@ -1,9 +1,11 @@
-package se.mbark.cygni;
+package se.mbark.cygni.util;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import se.mbark.cygni.beans.AlbumInfo;
+import se.mbark.cygni.beans.ArtistInfo;
 import se.mbark.cygni.parsers.CoverArtArchiveResponseParser;
 import se.mbark.cygni.parsers.WikipediaResponeParser;
 

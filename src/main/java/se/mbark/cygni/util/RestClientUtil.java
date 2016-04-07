@@ -1,4 +1,4 @@
-package se.mbark.cygni;
+package se.mbark.cygni.util;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -16,7 +16,7 @@ import java.net.URL;
  * Created by mbark on 07/04/16.
  */
 public class RestClientUtil {
-    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.RestClientUtil");
+    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.util.RestClientUtil");
 
     public static HttpClient getSslClient(Vertx vertx) {
         HttpClientOptions options = new HttpClientOptions().

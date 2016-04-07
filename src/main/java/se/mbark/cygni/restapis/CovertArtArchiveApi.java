@@ -1,4 +1,4 @@
-package se.mbark.cygni;
+package se.mbark.cygni.restapis;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -17,7 +17,7 @@ public class CovertArtArchiveApi {
     private static final String URL = "http://coverartarchive.org/";
     private static final String RELEASE_GROUP = "release-group/";
     private static final String FRONT = "/front";
-    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.RestClientUtil");
+    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.util.RestClientUtil");
 
     private final HttpClient client;
 

@@ -1,4 +1,4 @@
-package se.mbark.cygni;
+package se.mbark.cygni.restapis;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -6,7 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.json.JsonObject;
-import io.vertx.lang.rxjava.InternalHelper;
+import se.mbark.cygni.util.RestClientUtil;
 
 /**
  * Created by mbark on 04/04/16.

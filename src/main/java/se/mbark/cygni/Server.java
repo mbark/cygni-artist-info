@@ -11,7 +11,13 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import se.mbark.cygni.beans.AlbumInfo;
+import se.mbark.cygni.beans.ArtistInfo;
 import se.mbark.cygni.parsers.MusicBrainzResponseParser;
+import se.mbark.cygni.restapis.CovertArtArchiveApi;
+import se.mbark.cygni.restapis.MusicBrainzApi;
+import se.mbark.cygni.restapis.WikipediaApi;
+import se.mbark.cygni.util.ResponseHandler;
 
 public class Server extends AbstractVerticle {
     final private Vertx vertx = Vertx.vertx();

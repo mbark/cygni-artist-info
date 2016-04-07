@@ -1,4 +1,4 @@
-package se.mbark.cygni;
+package se.mbark.cygni.beans;
 
 import java.net.URL;
 

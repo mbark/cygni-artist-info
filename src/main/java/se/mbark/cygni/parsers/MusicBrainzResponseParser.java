@@ -4,8 +4,8 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import se.mbark.cygni.AlbumInfo;
-import se.mbark.cygni.ArtistInfo;
+import se.mbark.cygni.beans.AlbumInfo;
+import se.mbark.cygni.beans.ArtistInfo;
 
 import java.util.ArrayList;
 import java.util.List;
