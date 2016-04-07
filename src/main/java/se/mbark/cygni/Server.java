@@ -13,11 +13,11 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import se.mbark.cygni.beans.AlbumInfo;
 import se.mbark.cygni.beans.ArtistInfo;
-import se.mbark.cygni.parsers.MusicBrainzResponseParser;
+import se.mbark.cygni.response.ResponseBuilder;
+import se.mbark.cygni.response.ResponseHandler;
 import se.mbark.cygni.restapis.CovertArtArchiveApi;
 import se.mbark.cygni.restapis.MusicBrainzApi;
 import se.mbark.cygni.restapis.WikipediaApi;
-import se.mbark.cygni.util.ResponseHandler;
 
 public class Server extends AbstractVerticle {
     final private Vertx vertx = Vertx.vertx();
@@ -57,42 +57,28 @@ public class Server extends AbstractVerticle {
         }
 
         LOGGER.info("Requesting info about artist with mbid = {0}", mbid);
+        ResponseHandler responseHandler = new ResponseHandler(mbid);
+
+        // who doesn't love callbacks, amirite?
         musicBrainz.getArtistInfo(mbid, musicBrainzRequest -> {
-            if(musicBrainzRequest.succeeded()) {
-                LOGGER.debug("MusicBrainz request finished successfullyy");
-                JsonObject musicBrainzResponse = musicBrainzRequest.result();
-                ArtistInfo artist = MusicBrainzResponseParser.parseMusicBrainzResponse(mbid, musicBrainzResponse);
-                artist = null;
-
-                if(artist == null) {
-                    LOGGER.debug("Unable to parse MusicBrainz response {0}", musicBrainzResponse);
-                    failWithMessage(context, "Unable to parse MusicBrainz response", 500);
-                    return;
-                }
-
-                ResponseHandler handler = new ResponseHandler(artist);
-
-                String wikipediaTitle = MusicBrainzResponseParser.parseWikipediaArtistTitle(musicBrainzResponse);
-
+            responseHandler.handleMusicBrainzResponse(musicBrainzRequest, (artist, wikipediaTitle) -> {
                 wikipedia.getArtistDescription(wikipediaTitle, wikipediaRequest -> {
-                    LOGGER.debug("Wikipedia request done {0}", wikipediaRequest);
-
-                    handler.handleWikipediaResponse(wikipediaRequest);
-                    respondIfDone(context, handler);
+                    responseHandler.handleWikipediaResponse(wikipediaRequest, responseBuilder -> {
+                        respondIfDone(context, responseBuilder);
+                    });
                 });
 
                 for(AlbumInfo album : artist.getAlbums()) {
-                    coverArtArchive.getAlbumCover(album.getId(), coverArtArchiveRequest -> {
-                        LOGGER.debug("CoverArt archive request {0} done for album with id={1}", coverArtArchiveRequest, album.getId());
+                    coverArtArchive.getAlbumCover(mbid, coverArtRequest -> {
+                        responseHandler.handleCoverArtArchiveResponse(album, coverArtRequest, responseBuilder -> {
+                            respondIfDone(context, responseBuilder);
+                        });
 
-                        handler.handleCoverArtResponse(album, coverArtArchiveRequest);
-                        respondIfDone(context, handler);
                     });
                 }
-            } else {
-                LOGGER.debug("MusicBrainz request failed with cause {0}", musicBrainzRequest.cause().getMessage());
-                failWithMessage(context, "MusicBrainz request failed, probably due to rate limiting - try again later", 429);
-            }
+            }, (statusCode, errorMsg) -> {
+                failWithMessage(context, errorMsg, statusCode);
+            });
         });
     }
 
@@ -107,16 +93,18 @@ public class Server extends AbstractVerticle {
                 .end(Json.encodePrettily(json));
     }
 
-    private void respondIfDone(RoutingContext context, ResponseHandler handler) {
-        if(handler.isDone()) {
+    private void respondIfDone(RoutingContext context, ResponseBuilder builder) {
+        if(builder.allInformationAdded()) {
+            ArtistInfo artistInfo = builder.getArtistInfoRespoonse();
+
             LOGGER.info("Done handling response with context {0}", context);
-            LOGGER.debug("Responding with {0}", handler.getArtistInfo());
+            LOGGER.debug("Responding with {0}", artistInfo);
 
             context
                     .response()
                     .putHeader("content-type", "application/json; charset=utf-8")
                     .setStatusCode(200)
-                    .end(Json.encodePrettily(handler.getArtistInfo()));
+                    .end(Json.encodePrettily(artistInfo));
         }
     }
 

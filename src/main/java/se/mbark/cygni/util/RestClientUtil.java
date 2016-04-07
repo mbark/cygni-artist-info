@@ -3,14 +3,13 @@ package se.mbark.cygni.util;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.*;
-import io.vertx.core.json.Json;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.lang.rxjava.InternalHelper;
-
-import java.net.URL;
 
 /**
  * Created by mbark on 07/04/16.

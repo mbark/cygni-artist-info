@@ -17,7 +17,7 @@ public class CovertArtArchiveApi {
     private static final String URL = "http://coverartarchive.org/";
     private static final String RELEASE_GROUP = "release-group/";
     private static final String FRONT = "/front";
-    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.util.RestClientUtil");
+    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.util.CoverArtArchiveApi");
 
     private final HttpClient client;
 
