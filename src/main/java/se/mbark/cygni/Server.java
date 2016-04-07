@@ -38,7 +38,9 @@ public class Server extends AbstractVerticle {
     private void startWebApp(Handler<AsyncResult<HttpServer>> next) {
         Router router = Router.router(vertx);
 
-        router.get("/").handler(this::getAlbumInfo);
+        router.get("/")
+                .handler(this::getAlbumInfo)
+                .failureHandler(this::failureHandler);
 
         vertx.createHttpServer()
                 .requestHandler(router::accept)
@@ -46,23 +48,25 @@ public class Server extends AbstractVerticle {
     }
 
     private void getAlbumInfo(RoutingContext context) {
-        LOGGER.info("Received request for album info {0}", context);
+        LOGGER.debug("Received request at url {0}", context.request().absoluteURI());
 
         String mbid = context.request().getParam("mbid");
-        if (mbid == null) {
-            respondWithError(context, 400);
+        if (mbid == null || mbid == "") {
+            failWithMessage(context, "Parameter mbid must be supplied", 400);
             return;
         }
 
+        LOGGER.info("Requesting info about artist with mbid = {0}", mbid);
         musicBrainz.getArtistInfo(mbid, musicBrainzRequest -> {
             if(musicBrainzRequest.succeeded()) {
-                LOGGER.debug("MusicBrainz request finished succesfully");
+                LOGGER.debug("MusicBrainz request finished successfullyy");
                 JsonObject musicBrainzResponse = musicBrainzRequest.result();
                 ArtistInfo artist = MusicBrainzResponseParser.parseMusicBrainzResponse(mbid, musicBrainzResponse);
+                artist = null;
 
                 if(artist == null) {
                     LOGGER.debug("Unable to parse MusicBrainz response {0}", musicBrainzResponse);
-                    respondWithError(context, 400);
+                    failWithMessage(context, "Unable to parse MusicBrainz response", 500);
                     return;
                 }
 
@@ -87,15 +91,20 @@ public class Server extends AbstractVerticle {
                 }
             } else {
                 LOGGER.debug("MusicBrainz request failed with cause {0}", musicBrainzRequest.cause().getMessage());
-                respondWithError(context, 400);
+                failWithMessage(context, "MusicBrainz request failed, probably due to rate limiting - try again later", 429);
             }
         });
     }
 
-    private void respondWithError(RoutingContext context, int statusCode) {
-        LOGGER.info("Error processing request, responding with status code {0}", statusCode);
-        LOGGER.info("Request had context {0}", context);
-        context.response().setStatusCode(statusCode).end();
+    private void failWithMessage(RoutingContext context, String message, int statusCode) {
+        JsonObject json = new JsonObject();
+        json.put("error", message);
+
+        LOGGER.debug("Request failed with status code = {0} and message {1}", statusCode, message);
+        context.
+                response()
+                .setStatusCode(statusCode)
+                .end(Json.encodePrettily(json));
     }
 
     private void respondIfDone(RoutingContext context, ResponseHandler handler) {
@@ -109,6 +118,21 @@ public class Server extends AbstractVerticle {
                     .setStatusCode(200)
                     .end(Json.encodePrettily(handler.getArtistInfo()));
         }
+    }
+
+    private void failureHandler(RoutingContext context) {
+        int statusCode = context.statusCode();
+        String body = context.getBodyAsString();
+
+        LOGGER.warn("Failure handling request, got status code {0}", statusCode);
+        LOGGER.debug("Response body is {0}", body);
+
+        JsonObject json = new JsonObject();
+        json.put("error", "Internal server error processing request");
+
+        context.response()
+                .setStatusCode(statusCode)
+                .end(Json.encodePrettily(json));
     }
 
     private void completeStartup(AsyncResult<HttpServer> http, Future<Void> fut) {
