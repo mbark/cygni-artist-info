@@ -18,15 +18,20 @@ import se.mbark.cygni.response.ResponseTracker;
 import se.mbark.cygni.restapis.CovertArtArchiveApi;
 import se.mbark.cygni.restapis.MusicBrainzApi;
 import se.mbark.cygni.restapis.WikipediaApi;
+import se.mbark.cygni.util.UrlBuilder;
 
 import java.util.List;
 
 public class Server extends AbstractVerticle {
+    private static final String CONTENT_TYPE = "application/json; charset=utf-8";
+    private static final Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.Server");
+
     final private Vertx vertx = Vertx.vertx();
     final private WikipediaApi wikipedia = new WikipediaApi(vertx);
     final private MusicBrainzApi musicBrainz = new MusicBrainzApi(vertx);
     final private CovertArtArchiveApi coverArtArchive = new CovertArtArchiveApi(vertx);
-    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.Server");
+
+    private UrlBuilder urlBuilder = new UrlBuilder();
 
     @Override
     public void start(Future<Void> fut) {
@@ -65,10 +70,12 @@ public class Server extends AbstractVerticle {
         });
 
         // who doesn't love callbacks, amirite?
-        musicBrainz.getArtistInfo(mbid, musicBrainzResponse -> {
+        String musicBrainzUrlurl = urlBuilder.getMusicBrainzUrl(mbid);
+        musicBrainz.get(musicBrainzUrlurl, musicBrainzResponse -> {
             responseHandler.handleMusicBrainzResponse(musicBrainzResponse);
 
-            wikipedia.getArtistDescription(responseHandler.getWikipediaTitle(), wikipediaResponse -> {
+            String wikipediaUrl = urlBuilder.getWikipediaUrl(responseHandler.getWikipediaTitle());
+            wikipedia.get(wikipediaUrl, wikipediaResponse -> {
                 responseHandler.handleWikipediaResponse(wikipediaResponse);
                 responseTracker.wikipediaRequestReceived();
             }, (statusCode, errorMsg) -> {
@@ -80,7 +87,9 @@ public class Server extends AbstractVerticle {
             responseTracker.setExpectedAlbumInfoRespones(albums.size());
 
             for(AlbumInfo album : responseHandler.getArtistInfo().getAlbums()) {
-                coverArtArchive.getAlbumCover(album.getId(), coverArtResponse -> {
+
+                String coverArtArchiveUrl = urlBuilder.getCoverArtArchiveUrl(album.getId());
+                coverArtArchive.get(coverArtArchiveUrl, coverArtResponse -> {
                     responseHandler.handleCoverArtArchiveResponse(album, coverArtResponse);
                     responseTracker.albumInfoReceived();
                 }, (statusCode, errorMsg) -> {
@@ -106,6 +115,7 @@ public class Server extends AbstractVerticle {
         LOGGER.debug("Failing request with status code = {0} and message {1}", statusCode, message);
         context.
                 response()
+                .putHeader("content-type", CONTENT_TYPE)
                 .setStatusCode(statusCode)
                 .end(Json.encodePrettily(json));
     }
@@ -118,7 +128,7 @@ public class Server extends AbstractVerticle {
 
         context
                 .response()
-                .putHeader("content-type", "application/json; charset=utf-8")
+                .putHeader("content-type", CONTENT_TYPE)
                 .setStatusCode(200)
                 .end(Json.encodePrettily(artistInfo));
     }

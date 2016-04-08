@@ -1,4 +1,4 @@
-package se.mbark.cygni.util;
+package se.mbark.cygni.restapis;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
@@ -12,19 +12,21 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Created by mbark on 07/04/16.
+ * Created by mbark on 08/04/16.
  */
-public class RestClientUtil {
-    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.util.RestClientUtil");
+public abstract class AbstractRestApi {
+    final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.restapis.AbstractRestApi");
 
-    public static HttpClient getSslClient(Vertx vertx) {
+    abstract void get(String url, Consumer<JsonObject> success, BiConsumer<Integer, String> fail);
+
+    protected static HttpClient getSslClient(Vertx vertx) {
         HttpClientOptions options = new HttpClientOptions().
                 setSsl(true).
                 setTrustAll(true);
         return vertx.createHttpClient(options);
     }
 
-    public static HttpClientRequest getJsonRequest(HttpClient client, String url, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
+    protected static HttpClientRequest getJsonRequest(HttpClient client, String url, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
         LOGGER.debug("GET json from {0}", url);
         return client.getAbs(url, response -> {
             response.bodyHandler(body -> {
@@ -43,3 +45,4 @@ public class RestClientUtil {
         });
     }
 }
+

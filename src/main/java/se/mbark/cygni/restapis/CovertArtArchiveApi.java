@@ -13,10 +13,7 @@ import java.util.function.Consumer;
 /**
  * Created by mbark on 04/04/16.
  */
-public class CovertArtArchiveApi {
-    private static final String URL = "http://coverartarchive.org/";
-    private static final String RELEASE_GROUP = "release-group/";
-    private static final String FRONT = "/front";
+public class CovertArtArchiveApi extends AbstractRestApi {
     final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.util.CoverArtArchiveApi");
 
     private final HttpClient client;
@@ -25,9 +22,7 @@ public class CovertArtArchiveApi {
         client = vertx.createHttpClient();
     }
 
-    public void getAlbumCover(String mbid, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
-        String url = buildUrl(mbid);
-
+    public void get(String url, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
         LOGGER.debug("GET CoverArt image from {0}", url);
         client.getAbs(url, response -> {
             if(response.statusCode() == 307 || response.statusCode() == 302) {
@@ -42,10 +37,5 @@ public class CovertArtArchiveApi {
                 fail.accept(response.statusCode(), "");
             }
         }).end();
-    }
-
-    private String buildUrl(String mbid) {
-        String url = URL + RELEASE_GROUP + mbid + FRONT;
-        return url;
     }
 }
