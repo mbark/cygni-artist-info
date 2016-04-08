@@ -25,6 +25,10 @@ public class ResponseHandler {
         this.mbid = mbid;
     }
 
+    public String getMbid() {
+        return mbid;
+    }
+
     public ArtistInfo getArtistInfo() {
         return artistInfo;
     }

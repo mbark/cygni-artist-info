@@ -11,7 +11,6 @@ public class UrlBuilder {
     private static final String API_URL = "http://musicbrainz.org/ws/2/artist/";
     private static final String INC_PARAM = "url-rels+release-groups";
     private static final String FMT_PARAM = "json";
-    private static final String USER_AGENT = "CygniProgrammingTest/0.0.1 ( barksten@kth.se )";
 
     private static final String BASE_URL = "https://en.wikipedia.org/w/api.php?";
     private static final String FORMAT = "&format=json";

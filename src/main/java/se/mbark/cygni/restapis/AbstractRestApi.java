@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 public abstract class AbstractRestApi {
     final private static Logger LOGGER = LoggerFactory.getLogger("se.mbark.cygni.restapis.AbstractRestApi");
 
-    abstract void get(String url, Consumer<JsonObject> success, BiConsumer<Integer, String> fail);
+    public abstract void get(String url, Consumer<JsonObject> success, BiConsumer<Integer, String> fail);
 
     protected static HttpClient getSslClient(Vertx vertx) {
         HttpClientOptions options = new HttpClientOptions().

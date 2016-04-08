@@ -57,7 +57,7 @@ public class Server extends AbstractVerticle {
     private void getAlbumInfo(RoutingContext context) {
         LOGGER.debug("Received request at url {0}", context.request().absoluteURI());
 
-        String mbid = context.request().getParam("mbid");
+        final String mbid = context.request().getParam("mbid");
         if (mbid == null || mbid == "") {
             failWithMessage(context, "Parameter mbid must be supplied", 400);
             return;
@@ -65,48 +65,19 @@ public class Server extends AbstractVerticle {
 
         LOGGER.info("Requesting info about artist with mbid = {0}", mbid);
         final ResponseHandler responseHandler = new ResponseHandler(mbid);
-        ResponseTracker responseTracker = new ResponseTracker(() -> {
-           respond(context, responseHandler);
+        final ResponseTracker responseTracker = new ResponseTracker(() -> {
+            respond(context, responseHandler);
         });
 
-        // who doesn't love callbacks, amirite?
-        String musicBrainzUrlurl = urlBuilder.getMusicBrainzUrl(mbid);
-        musicBrainz.get(musicBrainzUrlurl, musicBrainzResponse -> {
-            responseHandler.handleMusicBrainzResponse(musicBrainzResponse);
-
-            String wikipediaUrl = urlBuilder.getWikipediaUrl(responseHandler.getWikipediaTitle());
-            wikipedia.get(wikipediaUrl, wikipediaResponse -> {
-                responseHandler.handleWikipediaResponse(wikipediaResponse);
-                responseTracker.wikipediaRequestReceived();
-            }, (statusCode, errorMsg) -> {
-                LOGGER.warn("Wikipedia request failed with status code = {0} and content {1}", statusCode, errorMsg);
-                responseTracker.wikipediaRequestReceived();
-            });
-
-            List<AlbumInfo> albums = responseHandler.getArtistInfo().getAlbums();
-            responseTracker.setExpectedAlbumInfoRespones(albums.size());
-
-            for(AlbumInfo album : responseHandler.getArtistInfo().getAlbums()) {
-
-                String coverArtArchiveUrl = urlBuilder.getCoverArtArchiveUrl(album.getId());
-                coverArtArchive.get(coverArtArchiveUrl, coverArtResponse -> {
-                    responseHandler.handleCoverArtArchiveResponse(album, coverArtResponse);
-                    responseTracker.albumInfoReceived();
-                }, (statusCode, errorMsg) -> {
-                    if(statusCode == 404) {
-                        LOGGER.info("No cover art for album with id {0}", album.getId());
-                    } else {
-                        LOGGER.warn("CoverArt archive request failed with status code = {0}", statusCode);
-                    }
-                    responseTracker.albumInfoReceived();
-                });
-            }
+        final ApiController controller = new ApiController(context, urlBuilder, responseHandler, responseTracker);
+        controller.doMusicBrainzGet(musicBrainz, () -> {
+            controller.doWikipediaGet(wikipedia);
+            controller.doCoverArtArchiveGet(coverArtArchive);
         }, (statusCode, errorMsg) -> {
             LOGGER.warn("MusicBrainz request failed, returning status code = {0}", statusCode);
             failWithMessage(context, errorMsg, statusCode);
         });
     }
-
 
     private void failWithMessage(RoutingContext context, String message, int statusCode) {
         JsonObject json = new JsonObject();
@@ -144,7 +115,7 @@ public class Server extends AbstractVerticle {
         json.put("error", "Internal server error processing request");
 
         context.response()
-                .setStatusCode(statusCode)
+                .setStatusCode(500)
                 .end(Json.encodePrettily(json));
     }
 
