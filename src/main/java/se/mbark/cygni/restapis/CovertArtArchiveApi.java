@@ -1,13 +1,13 @@
 package se.mbark.cygni.restapis;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.lang.rxjava.InternalHelper;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 
 /**
@@ -25,7 +25,7 @@ public class CovertArtArchiveApi {
         client = vertx.createHttpClient();
     }
 
-    public void getAlbumCover(String mbid, Handler<AsyncResult<JsonObject>> callback) {
+    public void getAlbumCover(String mbid, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
         String url = buildUrl(mbid);
 
         LOGGER.debug("GET CoverArt image from {0}", url);
@@ -36,10 +36,10 @@ public class CovertArtArchiveApi {
                 image.put("image", location);
 
                 LOGGER.debug("GET CoverArt image from {0} got response {1}", url, image);
-                callback.handle(InternalHelper.result(image));
+                success.accept(image);
             } else {
                 LOGGER.debug("GET cover art image from {0} failed with status code {1}", url, response.statusCode());
-                callback.handle(InternalHelper.failure(new Exception()));
+                fail.accept(response.statusCode(), "");
             }
         }).end();
     }

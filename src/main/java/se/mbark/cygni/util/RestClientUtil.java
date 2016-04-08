@@ -1,7 +1,5 @@
 package se.mbark.cygni.util;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
@@ -9,7 +7,9 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.lang.rxjava.InternalHelper;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Created by mbark on 07/04/16.
@@ -24,7 +24,7 @@ public class RestClientUtil {
         return vertx.createHttpClient(options);
     }
 
-    public static HttpClientRequest getJsonRequest(HttpClient client, String url, Handler<AsyncResult<JsonObject>> callback) {
+    public static HttpClientRequest getJsonRequest(HttpClient client, String url, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
         LOGGER.debug("GET json from {0}", url);
         return client.getAbs(url, response -> {
             response.bodyHandler(body -> {
@@ -33,11 +33,11 @@ public class RestClientUtil {
                 if(response.statusCode() == 200) {
                     JsonObject json = new JsonObject(content);
                     LOGGER.debug("GET json from {0} got result {1}", url, json);
-                    callback.handle(InternalHelper.result(json));
+                    success.accept(json);
                 } else {
                     LOGGER.warn("GET json from {0} failed with status code {1}", url, response.statusCode());
                     LOGGER.debug("Failed GET has content {0}", content);
-                    callback.handle(InternalHelper.failure(new Exception(content)));
+                    fail.accept(response.statusCode(), content);
                 }
             });
         });

@@ -1,12 +1,13 @@
 package se.mbark.cygni.restapis;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.json.JsonObject;
 import se.mbark.cygni.util.RestClientUtil;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Created by mbark on 04/04/16.
@@ -26,9 +27,9 @@ public class WikipediaApi {
         client = RestClientUtil.getSslClient(vertx);
     }
 
-    public void getArtistDescription(String title, Handler<AsyncResult<JsonObject>> callback) {
+    public void getArtistDescription(String title, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
         String url = buildUrl(title);
-        HttpClientRequest request = RestClientUtil.getJsonRequest(client, url, callback);
+        HttpClientRequest request = RestClientUtil.getJsonRequest(client, url, success, fail);
         request.end();
     }
 

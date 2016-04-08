@@ -1,12 +1,13 @@
 package se.mbark.cygni.restapis;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.json.JsonObject;
 import se.mbark.cygni.util.RestClientUtil;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Created by mbark on 04/04/16.
@@ -23,9 +24,16 @@ public class MusicBrainzApi {
         client = vertx.createHttpClient();
     }
 
-    public void getArtistInfo(String mbid, Handler<AsyncResult<JsonObject>> callback) {
+    public void getArtistInfo(String mbid, Consumer<JsonObject> success, BiConsumer<Integer, String> fail) {
         String url = buildUrl(mbid);
-        HttpClientRequest request = RestClientUtil.getJsonRequest(client, url, callback);
+        HttpClientRequest request = RestClientUtil.getJsonRequest(client, url, success, (statusCode, errrorMsg) -> {
+            if(statusCode == 503) {
+                fail.accept(429, "Too many requests to MusicBrainz, try waiting a little");
+            } else {
+                JsonObject json = new JsonObject(errrorMsg);
+                fail.accept(statusCode, json.getString("error"));
+            }
+        });
         request.putHeader("user-agent", USER_AGENT).end();
     }
 

@@ -13,11 +13,13 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import se.mbark.cygni.beans.AlbumInfo;
 import se.mbark.cygni.beans.ArtistInfo;
-import se.mbark.cygni.response.ResponseBuilder;
 import se.mbark.cygni.response.ResponseHandler;
+import se.mbark.cygni.response.ResponseTracker;
 import se.mbark.cygni.restapis.CovertArtArchiveApi;
 import se.mbark.cygni.restapis.MusicBrainzApi;
 import se.mbark.cygni.restapis.WikipediaApi;
+
+import java.util.List;
 
 public class Server extends AbstractVerticle {
     final private Vertx vertx = Vertx.vertx();
@@ -57,55 +59,68 @@ public class Server extends AbstractVerticle {
         }
 
         LOGGER.info("Requesting info about artist with mbid = {0}", mbid);
-        ResponseHandler responseHandler = new ResponseHandler(mbid);
+        final ResponseHandler responseHandler = new ResponseHandler(mbid);
+        ResponseTracker responseTracker = new ResponseTracker(() -> {
+           respond(context, responseHandler);
+        });
 
         // who doesn't love callbacks, amirite?
-        musicBrainz.getArtistInfo(mbid, musicBrainzRequest -> {
-            responseHandler.handleMusicBrainzResponse(musicBrainzRequest, (artist, wikipediaTitle) -> {
-                wikipedia.getArtistDescription(wikipediaTitle, wikipediaRequest -> {
-                    responseHandler.handleWikipediaResponse(wikipediaRequest, responseBuilder -> {
-                        respondIfDone(context, responseBuilder);
-                    });
-                });
+        musicBrainz.getArtistInfo(mbid, musicBrainzResponse -> {
+            responseHandler.handleMusicBrainzResponse(musicBrainzResponse);
 
-                for(AlbumInfo album : artist.getAlbums()) {
-                    coverArtArchive.getAlbumCover(mbid, coverArtRequest -> {
-                        responseHandler.handleCoverArtArchiveResponse(album, coverArtRequest, responseBuilder -> {
-                            respondIfDone(context, responseBuilder);
-                        });
-
-                    });
-                }
+            wikipedia.getArtistDescription(responseHandler.getWikipediaTitle(), wikipediaResponse -> {
+                responseHandler.handleWikipediaResponse(wikipediaResponse);
+                responseTracker.wikipediaRequestReceived();
             }, (statusCode, errorMsg) -> {
-                failWithMessage(context, errorMsg, statusCode);
+                LOGGER.warn("Wikipedia request failed with status code = {0} and content {1}", statusCode, errorMsg);
+                responseTracker.wikipediaRequestReceived();
             });
+
+            List<AlbumInfo> albums = responseHandler.getArtistInfo().getAlbums();
+            responseTracker.setExpectedAlbumInfoRespones(albums.size());
+
+            for(AlbumInfo album : responseHandler.getArtistInfo().getAlbums()) {
+                coverArtArchive.getAlbumCover(album.getId(), coverArtResponse -> {
+                    responseHandler.handleCoverArtArchiveResponse(album, coverArtResponse);
+                    responseTracker.albumInfoReceived();
+                }, (statusCode, errorMsg) -> {
+                    if(statusCode == 404) {
+                        LOGGER.info("No cover art for album with id {0}", album.getId());
+                    } else {
+                        LOGGER.warn("CoverArt archive request failed with status code = {0}", statusCode);
+                    }
+                    responseTracker.albumInfoReceived();
+                });
+            }
+        }, (statusCode, errorMsg) -> {
+            LOGGER.warn("MusicBrainz request failed, returning status code = {0}", statusCode);
+            failWithMessage(context, errorMsg, statusCode);
         });
     }
+
 
     private void failWithMessage(RoutingContext context, String message, int statusCode) {
         JsonObject json = new JsonObject();
         json.put("error", message);
 
-        LOGGER.debug("Request failed with status code = {0} and message {1}", statusCode, message);
+        LOGGER.debug("Failing request with status code = {0} and message {1}", statusCode, message);
         context.
                 response()
                 .setStatusCode(statusCode)
                 .end(Json.encodePrettily(json));
     }
 
-    private void respondIfDone(RoutingContext context, ResponseBuilder builder) {
-        if(builder.allInformationAdded()) {
-            ArtistInfo artistInfo = builder.getArtistInfoRespoonse();
+    private void respond(RoutingContext context, ResponseHandler handler) {
+        ArtistInfo artistInfo = handler.getArtistInfo();
 
-            LOGGER.info("Done handling response with context {0}", context);
-            LOGGER.debug("Responding with {0}", artistInfo);
+        LOGGER.info("Done handling response with context {0}", context);
+        LOGGER.debug("Responding with {0}", artistInfo);
 
-            context
-                    .response()
-                    .putHeader("content-type", "application/json; charset=utf-8")
-                    .setStatusCode(200)
-                    .end(Json.encodePrettily(artistInfo));
-        }
+        context
+                .response()
+                .putHeader("content-type", "application/json; charset=utf-8")
+                .setStatusCode(200)
+                .end(Json.encodePrettily(artistInfo));
     }
 
     private void failureHandler(RoutingContext context) {
